@@ -1,0 +1,247 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<project version="4">
+  <component name="CsvFileAttributes">
+    <option name="attributeMap">
+      <map>
+        <entry key="\Epic_Lab_Dataset\AB06\10_09_18\stair\conditions\stair_1_l_01_01.csv">
+          <value>
+            <Attribute>
+              <option name="separator" value="," />
+            </Attribute>
+          </value>
+        </entry>
+        <entry key="\Epic_Lab_Dataset\AB06\10_09_18\stair\emg\stair_1_l_01_01.csv">
+          <value>
+            <Attribute>
+              <option name="separator" value="," />
+            </Attribute>
+          </value>
+        </entry>
+        <entry key="\Epic_Lab_Dataset\AB06\10_09_18\stair\emg\stair_1_l_01_02.csv">
+          <value>
+            <Attribute>
+              <option name="separator" value="," />
+            </Attribute>
+          </value>
+        </entry>
+        <entry key="\Epic_Lab_Dataset\AB06\10_09_18\stair\emg\stair_1_l_01_04.csv">
+          <value>
+            <Attribute>
+              <option name="separator" value="," />
+            </Attribute>
+          </value>
+        </entry>
+        <entry key="\Epic_Lab_Dataset\AB06\10_09_18\stair\emg\stair_1_l_01_06.csv">
+          <value>
+            <Attribute>
+              <option name="separator" value="," />
+            </Attribute>
+          </value>
+        </entry>
+        <entry key="\Epic_Lab_Dataset\AB06\10_09_18\stair\emg\stair_1_r_01_01.csv">
+          <value>
+            <Attribute>
+              <option name="separator" value="," />
+            </Attribute>
+          </value>
+        </entry>
+        <entry key="\Epic_Lab_Dataset\AB06\10_09_18\stair\emg\stair_1_r_01_02.csv">
+          <value>
+            <Attribute>
+              <option name="separator" value="," />
+            </Attribute>
+          </value>
+        </entry>
+        <entry key="\Epic_Lab_Dataset\AB06\10_09_18\stair\emg\stair_1_r_01_05.csv">
+          <value>
+            <Attribute>
+              <option name="separator" value="," />
+            </Attribute>
+          </value>
+        </entry>
+        <entry key="\Epic_Lab_Dataset\AB06\10_09_18\stair\emg\stair_2_l_01_02.csv">
+          <value>
+            <Attribute>
+              <option name="separator" value="," />
+            </Attribute>
+          </value>
+        </entry>
+        <entry key="\Epic_Lab_Dataset\AB06\10_09_18\stair\emg\stair_3_l_01_03.csv">
+          <value>
+            <Attribute>
+              <option name="separator" value="," />
+            </Attribute>
+          </value>
+        </entry>
+        <entry key="\Epic_Lab_Dataset\AB06\10_09_18\stair\emg\stair_3_l_01_05.csv">
+          <value>
+            <Attribute>
+              <option name="separator" value="," />
+            </Attribute>
+          </value>
+        </entry>
+        <entry key="\Epic_Lab_Dataset\AB06\10_09_18\stair\emg\stair_3_r_01_02.csv">
+          <value>
+            <Attribute>
+              <option name="separator" value="," />
+            </Attribute>
+          </value>
+        </entry>
+        <entry key="\Epic_Lab_Dataset\AB06\10_09_18\stair\emg\stair_3_r_01_03.csv">
+          <value>
+            <Attribute>
+              <option name="separator" value="," />
+            </Attribute>
+          </value>
+        </entry>
+        <entry key="\Epic_Lab_Dataset\AB06\10_09_18\stair\emg\stair_4_l_01_02.csv">
+          <value>
+            <Attribute>
+              <option name="separator" value="," />
+            </Attribute>
+          </value>
+        </entry>
+        <entry key="\Epic_Lab_Dataset\AB06\10_09_18\stair\emg\stair_4_l_01_04.csv">
+          <value>
+            <Attribute>
+              <option name="separator" value="," />
+            </Attribute>
+          </value>
+        </entry>
+        <entry key="\Epic_Lab_Dataset\AB06\10_09_18\stair\emg\stair_4_r_01_05.csv">
+          <value>
+            <Attribute>
+              <option name="separator" value="," />
+            </Attribute>
+          </value>
+        </entry>
+        <entry key="\Epic_Lab_Dataset\AB06\10_09_18\stair\fp\stair_1_l_01_01.csv">
+          <value>
+            <Attribute>
+              <option name="separator" value="," />
+            </Attribute>
+          </value>
+        </entry>
+        <entry key="\Epic_Lab_Dataset\AB06\10_09_18\stair\gcLeft\stair_1_l_01_01.csv">
+          <value>
+            <Attribute>
+              <option name="separator" value="," />
+            </Attribute>
+          </value>
+        </entry>
+        <entry key="\Epic_Lab_Dataset\AB06\10_09_18\stair\gcRight\stair_1_l_01_01.csv">
+          <value>
+            <Attribute>
+              <option name="separator" value="," />
+            </Attribute>
+          </value>
+        </entry>
+        <entry key="\Epic_Lab_Dataset\AB06\10_09_18\stair\gon\stair_1_l_01_01.csv">
+          <value>
+            <Attribute>
+              <option name="separator" value="," />
+            </Attribute>
+          </value>
+        </entry>
+        <entry key="\Epic_Lab_Dataset\AB06\10_09_18\stair\id\stair_1_l_01_01.csv">
+          <value>
+            <Attribute>
+              <option name="separator" value="," />
+            </Attribute>
+          </value>
+        </entry>
+        <entry key="\Epic_Lab_Dataset\AB06\10_09_18\stair\id\stair_1_l_01_04.csv">
+          <value>
+            <Attribute>
+              <option name="separator" value="," />
+            </Attribute>
+          </value>
+        </entry>
+        <entry key="\Epic_Lab_Dataset\AB06\10_09_18\stair\ik\stair_1_l_01_01.csv">
+          <value>
+            <Attribute>
+              <option name="separator" value="," />
+            </Attribute>
+          </value>
+        </entry>
+        <entry key="\Epic_Lab_Dataset\AB06\10_09_18\stair\imu\stair_1_l_01_01.csv">
+          <value>
+            <Attribute>
+              <option name="separator" value="," />
+            </Attribute>
+          </value>
+        </entry>
+        <entry key="\Epic_Lab_Dataset\AB06\10_09_18\stair\markers\stair_1_l_01_01.csv">
+          <value>
+            <Attribute>
+              <option name="separator" value="," />
+            </Attribute>
+          </value>
+        </entry>
+        <entry key="\Epic_Lab_Dataset\AB06\10_09_18\treadmill\conditions\treadmill_01_01.csv">
+          <value>
+            <Attribute>
+              <option name="separator" value="," />
+            </Attribute>
+          </value>
+        </entry>
+        <entry key="\Epic_Lab_Dataset\AB06\10_09_18\treadmill\gcRight\treadmill_01_01.csv">
+          <value>
+            <Attribute>
+              <option name="separator" value="," />
+            </Attribute>
+          </value>
+        </entry>
+        <entry key="\Epic_Lab_Dataset\AB06\10_09_18\treadmill\gon\treadmill_01_01.csv">
+          <value>
+            <Attribute>
+              <option name="separator" value="," />
+            </Attribute>
+          </value>
+        </entry>
+        <entry key="\Epic_Lab_Dataset\AB06\10_09_18\treadmill\ik\treadmill_01_01.csv">
+          <value>
+            <Attribute>
+              <option name="separator" value="," />
+            </Attribute>
+          </value>
+        </entry>
+        <entry key="\Epic_Lab_Dataset\AB06\10_09_18\treadmill\imu\treadmill_01_01.csv">
+          <value>
+            <Attribute>
+              <option name="separator" value="," />
+            </Attribute>
+          </value>
+        </entry>
+        <entry key="\Epic_Lab_Dataset\AB13\11_04_2018\stair\emg\stair_1_l_01_01.csv">
+          <value>
+            <Attribute>
+              <option name="separator" value="," />
+            </Attribute>
+          </value>
+        </entry>
+        <entry key="\Epic_Lab_Dataset\AB14\11_25_2018\stair\emg\stair_1_l_01_01.csv">
+          <value>
+            <Attribute>
+              <option name="separator" value="," />
+            </Attribute>
+          </value>
+        </entry>
+        <entry key="\SubjectInfo.csv">
+          <value>
+            <Attribute>
+              <option name="separator" value="," />
+            </Attribute>
+          </value>
+        </entry>
+        <entry key="\Training_DataAB06.csv">
+          <value>
+            <Attribute>
+              <option name="separator" value="," />
+            </Attribute>
+          </value>
+        </entry>
+      </map>
+    </option>
+  </component>
+</project>

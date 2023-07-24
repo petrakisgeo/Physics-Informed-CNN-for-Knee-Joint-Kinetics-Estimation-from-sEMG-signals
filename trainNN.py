@@ -207,7 +207,7 @@ if __name__ == '__main__':
 
     # training_df = getTrainingData(cwd, subjects=subj_info, training_in=training_input, training_out=output_features,
     #                               trial_types=['stair'],
-    #                               trial_feature=['stairHeight'], save_condition=True, dropNaN=False)
+    #                               trial_feature=['Speed'], save_condition=True, dropNaN=False)
     training_df = loadTrainingData(cwd, subj_info)
     training_df.dropna(inplace=True)
     # training_df.reset_index(drop=True, inplace=True)
@@ -216,7 +216,7 @@ if __name__ == '__main__':
     p = 1
     all_cycles_interp = random.sample(all_cycles_interp, int(len(all_cycles_interp) * p))
 
-    x_train, y_train, x_val, y_val, x_test, y_test = getTrainTestCycles(all_cycles_interp)
+    x_train, y_train, x_val, y_val, x_test, y_test = getTrainTestCycles(all_cycles)
     batchsize = 16
     train_dataset = MyDataset(x_train, y_train)
     train_dataloader = DataLoader(train_dataset, batch_size=batchsize, shuffle=False)
@@ -437,12 +437,12 @@ if __name__ == '__main__':
     plt.plot(epochs, val_losses)
     plt.show()
 
-    model_file = "CNN2D_EMG.pt"
-    torch.save(model.state_dict(), model_file)
-
+    # model_file = "CNN2D_EMG.pt"
+    # torch.save(model.state_dict(), model_file)
     # Testing loop
-    old_model_state = torch.load('CNN2D_EMG.pt')
-    model.load_state_dict(old_model_state)
+    # old_model_state = torch.load('CNN2D_EMG.pt')
+    # model.load_state_dict(old_model_state)
+
     model.eval()  # Set the model to evaluation mode
     test_loss = 0.0
 

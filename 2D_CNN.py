@@ -28,7 +28,7 @@ def splitByRatio(starting_list, ratio=None, number=None):
 
 
 def getInputOutput(training_dataframe):
-    input_features = [i for sublist in list(training_input.values()) for i in sublist]
+    input_features = [i for sublist in list(training_input.values()) for i in sublist] + ['Header']
     x = training_dataframe[input_features]
     y = training_dataframe[output_features]
 
@@ -192,7 +192,9 @@ class MyDataset(Dataset):
 
         # Perform any necessary preprocessing on the sequence and label
         # Convert the sequence and label to tensors or any other desired format
-
+        emg_devices = training_input['emg']
+        sequence = sequence[emg_devices]
+        label = label[output_features]
         # Example transformation: Convert sequence and label to tensors
         # All sequences are numpy arrays
         sequence_tensor = getTorchTensor(sequence)
@@ -203,21 +205,43 @@ class MyDataset(Dataset):
         return (sequence_tensor, label_tensor)
 
 
+def normalize_angles(y_train, y_val, y_test):
+    # Fit to training data
+    print("Normalizing angles . . .")
+    train_data = pd.concat(y_train)
+    sc = StandardScaler()
+    train_angles = train_data['knee_angle_r'].values.reshape(-1, 1)
+    sc.fit(train_angles)
+    print("Done")
+    def get_normalized_cycles(cycles, scale):
+        norm_cycles = []
+        for cycle in cycles:
+            angles = cycle['knee_angle_r'].values.reshape(-1, 1)
+            normalized = scale.transform(angles)
+            cycle['knee_angle_r'].iloc[:] = normalized.flatten()
+            norm_cycles.append(cycle)
+        return norm_cycles
+
+    norm_train = get_normalized_cycles(y_train, sc)
+    norm_val = get_normalized_cycles(y_val, sc)
+    norm_test = get_normalized_cycles(y_test, sc)
+
+    return norm_train, norm_val, norm_test, sc
+
+
 if __name__ == '__main__':
     cwd = os.getcwd()
 
-    training_df = getTrainingData(cwd, subjects=subj_info, training_in=training_input, training_out=output_features,
-                                  trial_types=['treadmill'],
-                                  trial_feature=['stairHeight'], save_condition=True, dropNaN=False)
-    # training_df = loadTrainingData(cwd, subj_info)
+    # training_df = getTrainingData(cwd, subjects=subj_info, training_in=training_input, training_out=output_features,
+    #                               trial_types=['treadmill'],
+    #                               trial_feature=['Speed'], save_condition=True, dropNaN=False)
+    training_df = loadTrainingData(cwd, subj_info)
     training_df.dropna(inplace=True)
-    # training_df.reset_index(drop=True, inplace=True)
-    all_cycles, all_cycles_interp, _ = getGaitCycles(training_df, preprocess_EMG=True)
-    # Data size
-    p = 1
-    all_cycles_interp = random.sample(all_cycles_interp, int(len(all_cycles_interp) * p))
+    training_df.reset_index(drop=True, inplace=True)
+    all_cycles, all_cycles_interp= getGaitCycles(training_df, preprocess_EMG=True, p=0.1)
 
     x_train, y_train, x_val, y_val, x_test, y_test = getTrainTestCycles(all_cycles_interp)
+    y_train, y_val, y_test, angle_scaler = normalize_angles(y_train, y_val, y_test)
 
     batchsize = 16
     train_dataset = MyDataset(x_train, y_train)
@@ -289,7 +313,7 @@ if __name__ == '__main__':
             return total_loss, mse1, mse2
 
 
-    length, width = x_train[0].shape
+    length, width = 100, 8
 
     model = CNN2(length, width).to(device)
 
@@ -299,7 +323,7 @@ if __name__ == '__main__':
     # callback = EarlyStopCallback(model, patience=50, delta=0.001)
 
     # Training loop
-    num_epochs = 300
+    num_epochs = 150
     trainingstart = time.time()
     train_losses = []
     val_losses = []
@@ -315,6 +339,7 @@ if __name__ == '__main__':
 
             optimizer.zero_grad()  # Zero the gradients
             outputs_moment, outputs_angle = model(inputs)
+
             loss, MSE_moment, MSE_angle = criterion(outputs_moment.squeeze(), targets[:, :, 0].squeeze(),
                                                     outputs_angle.squeeze(), targets[:, :, 1].squeeze())
             epoch_total_loss += loss.item()

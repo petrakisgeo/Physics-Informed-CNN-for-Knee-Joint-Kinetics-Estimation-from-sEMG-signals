@@ -1,11 +1,14 @@
 # This file is neccessary for all other files so we gather all the imports here
 
 import os
+import sys
 import glob
 import time
 import pickle
 import math
 import random
+import xml.etree.ElementTree as ET
+import xml.dom.minidom as minidom
 
 random.seed(100)
 
@@ -16,6 +19,7 @@ import scipy.io as spio
 from scipy.signal import filtfilt, butter
 import matplotlib
 import matplotlib.pyplot as plt
+
 matplotlib.use('TkAgg')
 from sklearn.model_selection import train_test_split
 from sklearn.preprocessing import StandardScaler, MinMaxScaler
@@ -37,17 +41,18 @@ training_input = {
         'rectusfemoris',
         'bicepsfemoris',
         'semitendinosus',
-    ]
+    ],
     # 'gon': [
     #     'knee_sagittal','ankle_sagittal','hip_sagittal'
     # ],
-    # 'ik': [
-    #     'pelvis_tilt', 'pelvis_list', 'pelvis_rotation', 'pelvis_tx', 'pelvis_ty', 'pelvis_tz',
-    #     'hip_flexion_r', 'hip_adduction_r', 'hip_rotation_r', 'knee_angle_r', 'ankle_angle_r',
-    #     'subtalar_angle_r',
-    #     'hip_flexion_l', 'hip_adduction_l', 'hip_rotation_l', 'knee_angle_l',
-    #     'ankle_angle_l', 'subtalar_angle_l'
-    # ],
+    'ik': [
+        'pelvis_tilt', 'pelvis_list', 'pelvis_rotation', 'pelvis_tx', 'pelvis_ty', 'pelvis_tz',
+        'hip_flexion_r', 'hip_adduction_r', 'hip_rotation_r', 'knee_angle_r', 'ankle_angle_r',
+        'subtalar_angle_r', 'mtp_angle_r',
+        'hip_flexion_l', 'hip_adduction_l', 'hip_rotation_l', 'knee_angle_l',
+        'ankle_angle_l', 'subtalar_angle_l', 'mtp_angle_l', 'lumbar_extension',
+        'lumbar_bending', 'lumbar_rotation'
+    ],
     # 'fp': [
     #     'FP1_vx', 'FP1_vy', 'FP1_vz', 'FP1_px', 'FP1_py', 'FP1_pz', 'FP1_moment_x',
     #     'FP2_vx', 'FP2_vy', 'FP2_vz', 'FP2_px', 'FP2_py', 'FP2_pz', 'FP2_moment_x',
@@ -55,10 +60,12 @@ training_input = {
     #     'FP4_vx', 'FP4_vy', 'FP4_vz', 'FP4_px', 'FP4_py', 'FP4_pz', 'FP4_moment_x',
     #     'FP5_vx', 'FP5_vy', 'FP5_vz', 'FP5_px', 'FP5_py', 'FP5_pz', 'FP5_moment_x',
     # ] # For stair trials
-    # 'fp': [
-    #     'Treadmill_R_vx', 'Treadmill_R_vy', 'Treadmill_R_vz', 'Treadmill_R_px', 'Treadmill_R_pz',
-    #     'Treadmill_R_moment_x', 'Treadmill_R_moment_y', 'Treadmill_R_moment_z'
-    # ]  # For treadmill trials
+    'fp': [
+        'Treadmill_R_vx', 'Treadmill_R_vy', 'Treadmill_R_vz', 'Treadmill_R_px', 'Treadmill_R_py', 'Treadmill_R_pz',
+        'Treadmill_R_moment_x', 'Treadmill_R_moment_y', 'Treadmill_R_moment_z',
+        'Treadmill_L_vx', 'Treadmill_L_vy', 'Treadmill_L_vz', 'Treadmill_L_px', 'Treadmill_L_py', 'Treadmill_L_pz',
+        'Treadmill_L_moment_x', 'Treadmill_L_moment_y', 'Treadmill_L_moment_z'
+    ]  # For treadmill trials
 }
 output_features = ["knee_angle_r_moment", 'knee_angle_r']
 disp_features = ['HeelStrike', 'ToeOff', 'subject_num', 'Header']
@@ -109,8 +116,8 @@ def getTrainingData(workpath, subjects, training_in, training_out, trial_types=[
                     # Load data file in dataframe together with the corresponding condition file
                     data_type = pd.read_csv(data_file)
                     # Add information about the specific trial
-                    trial_condition = pd.read_csv(condition_file)
-                    data_type[trial_feature] = trial_condition[trial_feature]
+                    # trial_condition = pd.read_csv(condition_file)
+                    # data_type[trial_feature] = trial_condition[trial_feature]
                     data_type = data_type[
                         1000 * data_type['Header'] % 5 == 0]  # Downsample to ID and IK sampling frequency
                     data_type.reset_index(inplace=True, drop=True)
@@ -126,7 +133,7 @@ def getTrainingData(workpath, subjects, training_in, training_out, trial_types=[
             # Instead we concatenate horizontally
 
             for i in range(1, len(type_dataframes)):
-                type_dataframes[i].drop(['Header'] + trial_feature, axis=1, inplace=True)
+                type_dataframes[i].drop(['Header'], axis=1, inplace=True)
 
             input_dataframe = pd.concat(type_dataframes, axis=1)
 
@@ -142,19 +149,19 @@ def getTrainingData(workpath, subjects, training_in, training_out, trial_types=[
             id_files = glob.glob(path_id)
             id_frames = pd.concat([pd.read_csv(i) for i in id_files], axis=0)
 
-            path_ik = os.path.join(subject_file_path, '**', trial_type, 'ik', "*.csv")
-            ik_files = glob.glob(path_ik)
-            ik_frames = pd.concat([pd.read_csv(i) for i in ik_files], axis=0)
-
-            ik_frames.drop(columns=['Header'], inplace=True)
-            output_dataframe = pd.concat([id_frames, ik_frames], axis=1)
-
+            # path_ik = os.path.join(subject_file_path, '**', trial_type, 'ik', "*.csv")
+            # ik_files = glob.glob(path_ik)
+            # ik_frames = pd.concat([pd.read_csv(i) for i in ik_files], axis=0)
+            #
+            # ik_frames.drop(columns=['Header'], inplace=True)
+            # output_dataframe = pd.concat([id_frames, ik_frames], axis=1)
+            output_dataframe = id_frames
             # Keep wanted output features
 
             output_dataframe.reset_index(drop=True, inplace=True)
 
             # Normalize with subject weight ! ! !
-            # output_dataframe[output_features] /= float(subject_weight)
+            output_dataframe['knee_angle_r_moment'] /= float(subject_weight)
 
             # Add gait cycle % for display purposes
             path_gc = os.path.join(subject_file_path, "**", trial_type, 'gcRight', "*.csv")
@@ -168,7 +175,7 @@ def getTrainingData(workpath, subjects, training_in, training_out, trial_types=[
             output_dataframe = output_dataframe[1000 * output_dataframe['Header'] % 5 == 0]
             output_dataframe.reset_index(drop=True, inplace=True)
             # To + disp features prokalei diplo Header sto apotelesma
-            output_dataframe = output_dataframe[training_out + disp_features]
+            output_dataframe = output_dataframe[[training_out[0]] + disp_features]
             output_dataframe = output_dataframe.iloc[:, :-1]
             trial_df = pd.concat([input_dataframe, output_dataframe], axis=1)
             if dropNaN:
@@ -181,7 +188,7 @@ def getTrainingData(workpath, subjects, training_in, training_out, trial_types=[
         subject_df['subject_num'] = subject_num
         # subject_df['age'] = subject_age
         # subject_df['height'] = subject_height
-        # subject_df['weight'] = subject_weight
+        subject_df['subject_weight'] = subject_weight
         subject_dataframes.append(subject_df)
         # Should save the training data in each subject folder but keep that for later use for inter-subject training
         #
@@ -224,7 +231,7 @@ def groupbyFeature(df, feature=None):
         return group_dataframes, group_attributes
 
 
-def getGaitCycles(df, preprocess_EMG=False):
+def getGaitCycles(df, preprocess_EMG=False , p=1 ):
     cycles = []
 
     data_copy = df.copy()
@@ -244,40 +251,38 @@ def getGaitCycles(df, preprocess_EMG=False):
         # Had cases where cycles were empty. Also no_of_rows>200 to skip incomplete gait cycles
         if not cycle.empty and cycle.shape[0] >= 200:
             cycles.append(cycle)
+    # Keep the % of cycles we want
+    cycles = random.sample(cycles, int(p * len(cycles)))
 
+    # Filter out dataframes with NaN values for stair trials
     if preprocess_EMG:
         print("Processing EMGs. . .")
         cycles = process_EMGs(cycles)
         print("Finished")
 
     interp_cycles = []
-
+    columns_to_interp = training_input['emg'] + training_input['fp'] + training_input['ik'] + ['Header'] + output_features
     common_x_axis = np.linspace(start=0.0, stop=100.0, num=100)
-    average_cycle = pd.DataFrame({"avg_real": [0] * len(common_x_axis), "avg_pred": [0] * len(common_x_axis)})
 
     for i, cycle in enumerate(cycles):
+        cycle = cycle.reset_index(drop=True)
         interp_cycle = pd.DataFrame()
         # Interpolate all columns according to HeelStrike %
-        for column_name in cycle.columns:
-            if column_name not in disp_features:
-                interp_cycle[column_name] = np.interp(common_x_axis, cycle['HeelStrike'],
-                                                      cycle[column_name])
-            # interp_cycle['knee_r_moment_predictions'] = np.interp(common_x_axis, cycle['HeelStrike'],
-            #                                                       cycle['knee_r_moment_predictions'])
+        for column_name in columns_to_interp:
+            interp_cycle[column_name] = np.interp(common_x_axis, cycle['HeelStrike'],
+                                                  cycle[column_name])
+        interp_cycle['subject_num'] = cycle['subject_num'].iloc[:]
+        interp_cycle['subject_weight'] = cycle['subject_weight'].iloc[:]
+
         interp_cycle['x_common'] = common_x_axis
 
-        #     average_cycle['avg_real'] += interp_cycle['knee_angle_r_moment']
-        #     # average_cycle['avg_pred'] += interp_cycle['knee_r_moment_predictions']
         interp_cycles.append(interp_cycle)
-    # average_cycle['avg_real'] = average_cycle['avg_real'] / len(cycles)
-    # # average_cycle['avg_pred'] = average_cycle['avg_pred'] / len(cycles)
-    # average_cycle['x_common'] = common_x_axis
-
-    return cycles, interp_cycles, average_cycle
+    return cycles, interp_cycles
 
 
 def process_EMGs(cycles):
     # Create lowpass butteworth 4th order filter for smoothing
+    devices = training_input['emg']
     cutoff_freq = 6  # Hz
     sampling_rate = 200  # Hz
     normalized_cutoff = cutoff_freq / (0.5 * sampling_rate)
@@ -286,8 +291,8 @@ def process_EMGs(cycles):
     for cycle in cycles:
         # Split EMG and Output
 
-        EMG_raw = cycle.drop(output_features + disp_features, axis=1)
-        rest_of_cycle = cycle[output_features + disp_features]
+        EMG_raw = cycle[devices]
+        rest_of_cycle = cycle.drop(columns=devices, axis=1)
         # Rectify
         EMG_rectified = EMG_raw.abs()
         # Smooth each column seperately with the butteworth filter
@@ -304,3 +309,115 @@ def process_EMGs(cycles):
         processed_cycles.append(pd.concat([EMG_normalized, rest_of_cycle], axis=1))
 
     return processed_cycles
+
+
+# Opensim Batch Processing Functions
+def create_inverse_dynamics_tool_xml(cwd, subject_num, angles_df):
+    start = angles_df['time'].iloc[0]
+    end = angles_df['time'].iloc[-1]
+    # Path to subject specific model
+    model_file_path = os.path.join(cwd, 'Epic_Lab_Dataset', subject_num, 'osimxml', subject_num + '.osim')
+    # Create the root element
+    root = ET.Element("OpenSimDocument")
+    root.set("Version", "40000")
+
+    # Create the InverseDynamicsTool element
+    inverse_dynamics_tool = ET.SubElement(root, "InverseDynamicsTool")
+
+    # Create child elements and set their text values
+    results_directory = ET.SubElement(inverse_dynamics_tool, "results_directory")
+    results_directory.text = os.getcwd()
+
+    input_directory = ET.SubElement(inverse_dynamics_tool, "input_directory")
+
+    model_file = ET.SubElement(inverse_dynamics_tool, "model_file")
+    model_file.text = model_file_path
+
+    time_range = ET.SubElement(inverse_dynamics_tool, "time_range")
+    time_range.text = f'{start} {end}'
+
+    forces_to_exclude = ET.SubElement(inverse_dynamics_tool, "forces_to_exclude")
+    forces_to_exclude.text = "Muscles"
+
+    external_loads_file = ET.SubElement(inverse_dynamics_tool, "external_loads_file")
+    external_loads_file.text = 'ExtLoads.xml'
+
+    coordinates_file = ET.SubElement(inverse_dynamics_tool, "coordinates_file")
+    coordinates_file.text = os.path.join(cwd, 'angles.sto')
+
+    lowpass_cutoff_frequency_for_coordinates = ET.SubElement(
+        inverse_dynamics_tool, "lowpass_cutoff_frequency_for_coordinates"
+    )
+    lowpass_cutoff_frequency_for_coordinates.text = "-1"
+
+    output_gen_force_file = ET.SubElement(inverse_dynamics_tool, "output_gen_force_file")
+    output_gen_force_file.text = "opensim_output.sto"
+
+    joints_to_report_body_forces = ET.SubElement(inverse_dynamics_tool, "joints_to_report_body_forces")
+
+    output_body_forces_file = ET.SubElement(inverse_dynamics_tool, "output_body_forces_file")
+    output_body_forces_file.text = "Unassigned"
+
+    # Create the XML tree
+    tree = ET.ElementTree(root)
+
+    # Create a string representation of the XML
+    xml_str = ET.tostring(root, encoding="utf-8")
+
+    # Apply indents using minidom
+    dom = minidom.parseString(xml_str)
+    pretty_xml_str = dom.toprettyxml(indent="  ")
+
+    # Write the XML file with indents
+    with open("IDsetup.xml", "w", encoding="utf-8") as xml_file:
+        xml_file.write(pretty_xml_str)
+
+
+def write_sto_file(forces_df, file_name):
+    # Open the file for writing
+    with open(file_name, 'w') as file:
+        # Write the header information
+        file.write(f'{file_name}\n')
+        file.write('version=1\n')
+        file.write(f'nRows={len(forces_df)}\n')
+        file.write(f'nColumns={len(forces_df.columns)}\n')
+        file.write('inDegrees=yes\n')
+        file.write('endheader\n')
+
+        file.write('\t'.join(forces_df.columns) + '\n')
+
+        # Write the data
+        forces_df.to_csv(file, sep='\t', index=False, header=False)
+    full_path = os.path.join(os.getcwd(), file_name)
+    return full_path
+
+
+def read_sto_file(sto_file_path):
+    # Read the STO file as text
+    with open(sto_file_path, 'r') as file:
+        sto_lines = file.readlines()
+
+    # Extract column names from the first line
+    column_names = sto_lines[6].strip().split('\t')
+
+    # Extract data rows
+    data_rows = [line.strip().split('\t') for line in sto_lines[7:]]
+    data_clean = []
+    for row in data_rows:
+        clean_row = [float(s) for s in row]
+        data_clean.append(clean_row)
+    # Create a DataFrame
+    df = pd.DataFrame(data_clean, columns=column_names)
+
+    return df
+
+
+def filter_ID(id_df, cutoff_freq):
+    # The scipy filtfilt function applies a filter twice, once forward and once reverse, to cancel out phase shift applied from the filter
+    filtered = id_df.copy()
+    k = math.pow(math.sqrt(2.0) - 1.0, -0.25)
+    b, a = butter(2, k * cutoff_freq, fs=200.0)  # fs = 200 hz because 1/200 is 0.005 which is the sampling rate
+
+    filtered.iloc[:, 1:] = filtfilt(b, a, filtered.iloc[:, 1:], axis=0)
+
+    return filtered

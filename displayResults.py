@@ -1,25 +1,80 @@
 from gatherData import *
 
+
+def getInputOutput(training_dataframe):
+    input_features = [i for sublist in list(training_input.values()) for i in sublist] + ['Header'] + ['subject_num']
+    x = training_dataframe[input_features]
+    y = training_dataframe[output_features]
+
+    return x, y
+
+def getInputOutputCycles(cycles):
+    cycles_in = []
+    cycles_out = []
+
+    for cycle in cycles:
+        x, y = getInputOutput(cycle)
+        cycles_in.append(x)
+        cycles_out.append(y)
+    return cycles_in, cycles_out
+
+def normalize_angles(y_train, y_val, y_test):
+    # Fit to training data
+
+    train_data = pd.concat(y_train)
+    sc = StandardScaler()
+    sc.fit(train_data['knee_angle_r'])
+
+    def get_normalized_cycles(cycles, scale):
+        norm_cycles = []
+        for cycle in cycles:
+            cycle['knee_angle_r'].iloc[:] = scale.transform(cycle['knee_angle_r'])
+            norm_cycles.append(cycle)
+        return norm_cycles
+
+    norm_train = get_normalized_cycles(y_train, sc)
+    norm_val = get_normalized_cycles(y_val, sc)
+    norm_test = get_normalized_cycles(y_test, sc)
+
+    return norm_train, norm_val, norm_test, sc
+
+def getTrainTestCycles(all_cycles, scale_angles=None):
+    def custom_train_test_split(cycles_list, test_size=0.2):
+        cycles_list = random.sample(cycles_list, len(cycles_list))
+        train_size = 1 - test_size
+        split_index = int(len(cycles_list) * train_size)
+        train_cycles = cycles_list[:split_index]
+        test_cycles = cycles_list[split_index:]
+        return train_cycles, test_cycles
+
+    train_cycles, test_cycles = custom_train_test_split(all_cycles, test_size=0.2)
+
+    train_cycles, val_cycles = custom_train_test_split(train_cycles, test_size=0.1)
+
+    train_x, train_y = getInputOutputCycles(train_cycles)
+
+    test_x, test_y = getInputOutputCycles(test_cycles)
+
+    val_x, val_y = getInputOutputCycles(val_cycles)
+
+    return train_x, train_y, val_x, val_y, test_x, test_y
+
 if __name__ == '__main__':
-    # model_path = "FFNN256.h5"
-    # stats_path = "FFNN256.pkl"
-    # model = keras.models.load_model(model_path)
-    # print(model.summary())
+
     cwd = os.getcwd()
-    # alldata = getTrainingData(cwd, subjects=subj_info, training_in=training_input, training_out=output_features,
-    #                           trial_types=['stair'], trial_feature=['stairHeight'], save_condition=True, dropNaN=True)
-    alldata = loadTrainingData(cwd, subj_info)
-    # training, display = dropDisplayFeatures(alldata)
-    # inp = training.drop(columns=output_features)
+    alldata = getTrainingData(cwd, subjects=subj_info, training_in=training_input, training_out=output_features,
+                              trial_types=['stair'], trial_feature=['Speed'], save_condition=True, dropNaN=True)
 
+    # alldata = loadTrainingData(cwd, subj_info)
 
-    cycles, interp_cycles, avg_of_cycles = getGaitCycles(alldata,preprocess_EMG=True)
+    cycles, interp_cycles, avg_of_cycles = getGaitCycles(alldata, preprocess_EMG=True)
+
     for cycle, interp_cycle in zip(cycles, interp_cycles):
         f, (ax1, ax2) = plt.subplots(2, 1)
-        ax1.plot(cycle['HeelStrike'], cycle['gastrocmed'])
-        plt.title('Raw data')
-        ax2.plot(interp_cycle['x_common'], interp_cycle['gastrocmed'])
-        plt.title('Interpolated N=100 points')
+        ax1.plot(cycle['HeelStrike'], cycle['knee_angle_r'], '.')
+        ax1.set_title('Original raw data')
+        ax2.plot(interp_cycle['x_common'], interp_cycle['knee_angle_r'], '.')
+        ax2.set_title('Interpolated (linear) data, N=100 points')
         plt.tight_layout()
         plt.show()
         print('something')

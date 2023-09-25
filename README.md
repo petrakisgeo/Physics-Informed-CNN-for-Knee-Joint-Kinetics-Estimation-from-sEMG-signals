@@ -4,7 +4,7 @@
 Segmentation to gait cycles and sEMG signal preprocessing is implemented in the "gatherData.py".
 CNN architecture can be seen below. The feedforward layer architecture was determined by grid-search with the Optuna Python package, as 1 hidden layer with 512 neurons.
 <p align="center">
-<img src="https://github.com/petrakisgeo/Physics-Informed-CNN-for-Knee-Joint-Kinetics-Estimation-from-sEMG-signals/assets/117226445/e9034fee-7196-4e49-8705-b9cdf464cdea")
+<img src="https://github.com/petrakisgeo/Physics-Informed-CNN-for-Knee-Joint-Kinetics-Estimation-from-sEMG-signals/assets/117226445/e9034fee-7196-4e49-8705-b9cdf464cdea">
 </img>
 
 

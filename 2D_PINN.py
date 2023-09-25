@@ -1,14 +1,9 @@
-import io
-
-import numpy as np
-import pandas as pd
-
 from gatherData import *
 
 import torch
 import torch.nn as nn
 import torch.optim as optim
-from torch.utils.data import DataLoader, TensorDataset, Dataset
+from torch.utils.data import DataLoader, Dataset
 
 # Check if CUDA is available
 if torch.cuda.is_available():
@@ -18,8 +13,6 @@ else:
 print(torch.cuda.get_device_name(0))
 
 import opensim as osim
-
-import contextlib
 
 import os
 import sys
@@ -201,7 +194,7 @@ def getTorchTensor(data):
         return torch.tensor(data, dtype=torch.float32)
 
 
-class MyDataset(Dataset):
+class MyDataset_PINN(Dataset):
     def __init__(self, sequences, labels):
         self.sequences = sequences
         self.labels = labels
@@ -235,7 +228,7 @@ class MyDataset(Dataset):
 def process_batch_with_opensim_ID(cwd, angles_batch, forces_batch, subj_num, subj_weight, knee_angle_output_batch,
                                   moment_outputs_batch, moments_targets_batch, angle_scaler):
     # Create the output dataframe.
-    subj_weight=subj_weight.numpy()
+    subj_weight = subj_weight.numpy()
     moments_per_sample = []
     for idx in range(angles_batch.shape[0]):
         # Make the numpy arrays to dataframes with their corresponding column names to write the .sto files correctly
@@ -249,14 +242,15 @@ def process_batch_with_opensim_ID(cwd, angles_batch, forces_batch, subj_num, sub
         output_knee_angle = angle_scaler.inverse_transform(output_knee_angle)
         output_knee_angle = pd.DataFrame(output_knee_angle, columns=['knee_angle_r'])
         # Replace the IK calculated angle with the angle calculated by the Neural Network
-        # f, (ax1, ax2) = plt.subplots(2, 1)
-        # ax1.plot(angles_df['time'], angles_df['knee_angle_r'])
+        f, ax1 = plt.subplots(1, 1)
+        ax1.plot(angles_df['time'], angles_df['knee_angle_r'], label='Target angle')
 
         angles_df['knee_angle_r'].iloc[:] = output_knee_angle['knee_angle_r'].iloc[:]
-        angles_df = filter_ID(angles_df, 15.0)
+        angles_df['knee_angle_r'] = filter_ID(angles_df['knee_angle_r'], 12.0)
 
-        # ax2.plot(angles_df['time'], angles_df['knee_angle_r'])
-        # plt.show()
+        ax1.plot(angles_df['time'], angles_df['knee_angle_r'], label='NN angle')
+        ax1.legend()
+        plt.show()
         # Write the .sto files for IDtool input.
         _ = write_sto_file(angles_df, 'angles.sto')
         _ = write_sto_file(forces_df, 'forces.sto')
@@ -268,26 +262,26 @@ def process_batch_with_opensim_ID(cwd, angles_batch, forces_batch, subj_num, sub
 
         # Read the output from the .sto file, make it into a tensor and store it in a list
         opensim_output = read_sto_file('opensim_output.sto')
-        opensim_output = filter_ID(opensim_output, 8.0)
-        opensim_output /= subj_weight[idx]
+        opensim_output['knee_angle_r_moment'] = filter_ID(opensim_output['knee_angle_r_moment'], 10.0)
+        opensim_output.iloc[:, 1:] /= subj_weight[idx]
         steps = len(opensim_output)
         # Deal with interpolated angles with consecutive equal values
         if (steps < 100):
             final_row = opensim_output.iloc[-1, :]
-            missing_rows = pd.DataFrame([final_row] * (100-steps))
-            opensim_output = pd.concat([opensim_output,missing_rows])
+            missing_rows = pd.DataFrame([final_row] * (100 - steps))
+            opensim_output = pd.concat([opensim_output, missing_rows])
         nn_output = moment_outputs_batch[idx, :].cpu()
         real_output = moments_targets_batch[idx, :, 0].cpu()
         # Deal with outliers and non convergence of ID Tool
         if opensim_output['knee_angle_r_moment'].abs().max() > 3 * real_output.abs().max():
             opensim_output['knee_angle_r_moment'] = real_output[:]
-        # plt.plot(opensim_output['time'], opensim_output['knee_angle_r_moment'], label='physics output')
+        plt.plot(opensim_output['time'], opensim_output['knee_angle_r_moment'], label='physics output')
 
         moments_per_sample.append(getTorchTensor(opensim_output['knee_angle_r_moment'].copy()))
-        # plt.plot(opensim_output['time'], nn_output.detach().numpy(), label='NN output')
-        # plt.plot(opensim_output['time'], real_output.detach().numpy(), label='Target')
-        # plt.legend()
-        # plt.show()
+        plt.plot(opensim_output['time'], nn_output.detach().numpy(), label='NN output')
+        plt.plot(opensim_output['time'], real_output.detach().numpy(), label='Target')
+        plt.legend()
+        plt.show()
     # Stack the tensors into one tensor for all the batch. Right form to feed torch MSE loss function
     output_moments = torch.stack(moments_per_sample, dim=0)
 
@@ -317,6 +311,16 @@ def normalize_angles(y_train, y_val, y_test):
 
     return norm_train, norm_val, norm_test, sc
 
+def get_maximum_output_range(y_test):
+    # Concatenate all cycles into one dataframe to get the min and max of every column
+    df = pd.concat(y_test)
+    print('Moment max and min', df['knee_angle_r_moment'].max(), df['knee_angle_r_moment'].min())
+    dy_moment = df['knee_angle_r_moment'].max() - df['knee_angle_r_moment'].min()
+    print('Angle max and min', df['knee_angle_r'].max(), df['knee_angle_r'].min())
+    dy_angle = df['knee_angle_r'].max() - df['knee_angle_r'].min()
+    return dy_moment, dy_angle
+
+
 if __name__ == '__main__':
     cwd = os.getcwd()
 
@@ -337,13 +341,13 @@ if __name__ == '__main__':
     y_train, y_val, y_test, angle_scaler = normalize_angles(y_train, y_val, y_test)
 
     batchsize = 16
-    train_dataset = MyDataset(x_train, y_train)
+    train_dataset = MyDataset_PINN(x_train, y_train)
     train_dataloader = DataLoader(train_dataset, batch_size=batchsize, shuffle=False)
 
-    val_dataset = MyDataset(x_val, y_val)
+    val_dataset = MyDataset_PINN(x_val, y_val)
     val_dataloader = DataLoader(val_dataset, batch_size=batchsize, shuffle=False)
 
-    test_dataset = MyDataset(x_test, y_test)
+    test_dataset = MyDataset_PINN(x_test, y_test)
     test_dataloader = DataLoader(test_dataset, batch_size=batchsize, shuffle=False)
 
 
@@ -361,13 +365,13 @@ if __name__ == '__main__':
             self.dropout3 = nn.Dropout(0.3)
             self.maxpool3 = nn.MaxPool2d(kernel_size=(2, 2))
 
-            self.conv4 = nn.Conv2d(64, 64, kernel_size=(5, 1))
+            self.conv4 = nn.Conv2d(64, 64, kernel_size=(3, 1))
             self.dropout4 = nn.Dropout(0.3)
 
-            self.fc1 = nn.Linear(4 * 64, 256)
-            self.fc2 = nn.Linear(256, 256)
-            self.fc3_1 = nn.Linear(256, sequence_length)
-            self.fc3_2 = nn.Linear(256, sequence_length)
+            self.fc1 = nn.Linear(1024, 1024)
+            self.fc2 = nn.Linear(1024, 512)
+            self.fc3_1 = nn.Linear(512, sequence_length)
+            self.fc3_2 = nn.Linear(512, sequence_length)
             self.relu = nn.ReLU()
 
         def forward(self, x):
@@ -404,7 +408,8 @@ if __name__ == '__main__':
             mse2 = nn.MSELoss()(output_a, target_a)
             if physics_result is not None:
                 physics_result = physics_result.to(device)
-                physics_mse = nn.MSELoss()(physics_result, target_m) # THIMISOU TO ALLAKSES GIA NA TESTAREIS GWNIES KANONIKA THELEI OUTPUTM
+                physics_mse = nn.MSELoss()(physics_result,
+                                           target_m)  # THIMISOU TO ALLAKSES GIA NA TESTAREIS GWNIES KANONIKA THELEI OUTPUTM
             else:
                 physics_mse = 0
             l = 1.0
@@ -422,7 +427,7 @@ if __name__ == '__main__':
     # callback = EarlyStopCallback(model, patience=50, delta=0.001)
 
     # Training loop
-    num_epochs = 150
+    num_epochs = 200
     trainingstart = time.time()
     train_losses = []
     val_losses = []
@@ -438,8 +443,9 @@ if __name__ == '__main__':
             targets = targets.to(device)
             optimizer.zero_grad()  # Zero the gradients
             outputs_moment, outputs_angle = model(inputs)
-            if epoch > 1:
-                opensim_output = process_batch_with_opensim_ID(cwd, angles, forces, subj_num, subj_weight, outputs_angle,
+            if epoch > 5:
+                opensim_output = process_batch_with_opensim_ID(cwd, angles, forces, subj_num, subj_weight,
+                                                               outputs_angle,
                                                                outputs_moment, targets, angle_scaler)
                 # opensim_output /= subj_weight.unsqueeze(1)
                 loss, MSE_moment, MSE_angle, MSE_physics = criterion(outputs_moment.squeeze(),
@@ -513,6 +519,8 @@ if __name__ == '__main__':
     total_loss = 0.0
     moment_loss = 0.0
     angle_loss = 0.0
+    CC_angle = 0.0
+    CC_moment = 0.0
 
     all_targets = []
     all_predictions = []
@@ -523,7 +531,14 @@ if __name__ == '__main__':
 
             outputs = model(inputs)
             loss, MSE_moment, MSE_angle, _ = criterion(outputs[0].squeeze(), targets[:, :, 0].squeeze(),
-                                                    outputs[1].squeeze(), targets[:, :, 1].squeeze())
+                                                       outputs[1].squeeze(), targets[:, :, 1].squeeze())
+            output_moment = outputs[0].cpu().detach().numpy()
+            output_angle = outputs[1].cpu().detach().numpy()
+            target_np = targets.squeeze().transpose(0, 1).cpu().detach().numpy()
+            target_moment = target_np[0]
+            target_angle = target_np[1]
+            CC_moment += pearsonr(target_moment.flatten(), output_moment.flatten())[0]
+            CC_angle += pearsonr(target_angle.flatten(), output_angle.flatten())[0]
             total_loss += loss.item()
             moment_loss += MSE_moment.item()
             angle_loss += MSE_angle.item()
@@ -533,7 +548,10 @@ if __name__ == '__main__':
         total_loss /= len(test_dataloader)  # MSE
         moment_loss /= len(test_dataloader)
         angle_loss /= len(test_dataloader)
+        CC_moment /= len(test_dataloader)
+        CC_angle /= len(test_dataloader)
         print("MSE: ", total_loss, "Moment MSE:", moment_loss, "Angle MSE:", angle_loss)
+        print("CC moment:",CC_moment,"CC angle:", CC_angle)
 
     # Store the gait cycles together, not each batch together (unwrap the batch)
     all_targets = [tensor.cpu().squeeze() for batch in all_targets for tensor in batch]

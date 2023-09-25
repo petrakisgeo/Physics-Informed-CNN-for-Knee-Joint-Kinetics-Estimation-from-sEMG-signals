@@ -17,10 +17,14 @@ import numpy as np
 import pandas.errors
 import scipy.io as spio
 from scipy.signal import filtfilt, butter
+from scipy.stats import pearsonr
 import matplotlib
 import matplotlib.pyplot as plt
+import seaborn as sns
 
+sns.set_style(style='darkgrid')
 matplotlib.use('TkAgg')
+
 from sklearn.model_selection import train_test_split
 from sklearn.preprocessing import StandardScaler, MinMaxScaler
 from sklearn.decomposition import PCA
@@ -41,18 +45,18 @@ training_input = {
         'rectusfemoris',
         'bicepsfemoris',
         'semitendinosus',
+        # 'gracilis',
+        # 'gluteusmedius',
+        # 'rightexternaloblique'
     ],
-    # 'gon': [
-    #     'knee_sagittal','ankle_sagittal','hip_sagittal'
+    # 'ik': [
+    #     'pelvis_tilt', 'pelvis_list', 'pelvis_rotation', 'pelvis_tx', 'pelvis_ty', 'pelvis_tz',
+    #     'hip_flexion_r', 'hip_adduction_r', 'hip_rotation_r', 'knee_angle_r', 'ankle_angle_r',
+    #     'subtalar_angle_r', 'mtp_angle_r',
+    #     'hip_flexion_l', 'hip_adduction_l', 'hip_rotation_l', 'knee_angle_l',
+    #     'ankle_angle_l', 'subtalar_angle_l', 'mtp_angle_l', 'lumbar_extension',
+    #     'lumbar_bending', 'lumbar_rotation'
     # ],
-    'ik': [
-        'pelvis_tilt', 'pelvis_list', 'pelvis_rotation', 'pelvis_tx', 'pelvis_ty', 'pelvis_tz',
-        'hip_flexion_r', 'hip_adduction_r', 'hip_rotation_r', 'knee_angle_r', 'ankle_angle_r',
-        'subtalar_angle_r', 'mtp_angle_r',
-        'hip_flexion_l', 'hip_adduction_l', 'hip_rotation_l', 'knee_angle_l',
-        'ankle_angle_l', 'subtalar_angle_l', 'mtp_angle_l', 'lumbar_extension',
-        'lumbar_bending', 'lumbar_rotation'
-    ],
     # 'fp': [
     #     'FP1_vx', 'FP1_vy', 'FP1_vz', 'FP1_px', 'FP1_py', 'FP1_pz', 'FP1_moment_x',
     #     'FP2_vx', 'FP2_vy', 'FP2_vz', 'FP2_px', 'FP2_py', 'FP2_pz', 'FP2_moment_x',
@@ -60,12 +64,12 @@ training_input = {
     #     'FP4_vx', 'FP4_vy', 'FP4_vz', 'FP4_px', 'FP4_py', 'FP4_pz', 'FP4_moment_x',
     #     'FP5_vx', 'FP5_vy', 'FP5_vz', 'FP5_px', 'FP5_py', 'FP5_pz', 'FP5_moment_x',
     # ] # For stair trials
-    'fp': [
-        'Treadmill_R_vx', 'Treadmill_R_vy', 'Treadmill_R_vz', 'Treadmill_R_px', 'Treadmill_R_py', 'Treadmill_R_pz',
-        'Treadmill_R_moment_x', 'Treadmill_R_moment_y', 'Treadmill_R_moment_z',
-        'Treadmill_L_vx', 'Treadmill_L_vy', 'Treadmill_L_vz', 'Treadmill_L_px', 'Treadmill_L_py', 'Treadmill_L_pz',
-        'Treadmill_L_moment_x', 'Treadmill_L_moment_y', 'Treadmill_L_moment_z'
-    ]  # For treadmill trials
+    # 'fp': [
+    #     'Treadmill_R_vx', 'Treadmill_R_vy', 'Treadmill_R_vz', 'Treadmill_R_px', 'Treadmill_R_py', 'Treadmill_R_pz',
+    #     'Treadmill_R_moment_x', 'Treadmill_R_moment_y', 'Treadmill_R_moment_z',
+    #     'Treadmill_L_vx', 'Treadmill_L_vy', 'Treadmill_L_vz', 'Treadmill_L_px', 'Treadmill_L_py', 'Treadmill_L_pz',
+    #     'Treadmill_L_moment_x', 'Treadmill_L_moment_y', 'Treadmill_L_moment_z'
+    # ]  # For treadmill trials
 }
 output_features = ["knee_angle_r_moment", 'knee_angle_r']
 disp_features = ['HeelStrike', 'ToeOff', 'subject_num', 'Header']
@@ -73,7 +77,7 @@ disp_features = ['HeelStrike', 'ToeOff', 'subject_num', 'Header']
 subj_info = pd.read_csv("SubjectInfo.csv")
 
 
-# subj_info.drop(index=[i for i in range(1, len(subj_info))], inplace=True)
+# subj_info.drop(index=[i for i in range(0, 10)], inplace=True)
 
 
 def getTrainingData(workpath, subjects, training_in, training_out, trial_types=['stair'], trial_feature=['stairHeight'],
@@ -136,7 +140,6 @@ def getTrainingData(workpath, subjects, training_in, training_out, trial_types=[
                 type_dataframes[i].drop(['Header'], axis=1, inplace=True)
 
             input_dataframe = pd.concat(type_dataframes, axis=1)
-
             # Drop unnecessary columns THIMISOU OTI EDW MPAINEI TO TRIAL CONDITION
             input_dataframe = input_dataframe.drop(
                 columns=[i for i in input_dataframe.columns if
@@ -149,18 +152,18 @@ def getTrainingData(workpath, subjects, training_in, training_out, trial_types=[
             id_files = glob.glob(path_id)
             id_frames = pd.concat([pd.read_csv(i) for i in id_files], axis=0)
 
-            # path_ik = os.path.join(subject_file_path, '**', trial_type, 'ik', "*.csv")
-            # ik_files = glob.glob(path_ik)
-            # ik_frames = pd.concat([pd.read_csv(i) for i in ik_files], axis=0)
-            #
-            # ik_frames.drop(columns=['Header'], inplace=True)
-            # output_dataframe = pd.concat([id_frames, ik_frames], axis=1)
-            output_dataframe = id_frames
+            path_ik = os.path.join(subject_file_path, '**', trial_type, 'ik', "*.csv")
+            ik_files = glob.glob(path_ik)
+            ik_frames = pd.concat([pd.read_csv(i) for i in ik_files], axis=0)
+
+            ik_frames.drop(columns=['Header'], inplace=True)
+            output_dataframe = pd.concat([id_frames, ik_frames], axis=1)
+            # output_dataframe = id_frames
             # Keep wanted output features
 
             output_dataframe.reset_index(drop=True, inplace=True)
 
-            # Normalize with subject weight ! ! !
+            # Normalize moment with subject weight ! ! !
             output_dataframe['knee_angle_r_moment'] /= float(subject_weight)
 
             # Add gait cycle % for display purposes
@@ -175,7 +178,7 @@ def getTrainingData(workpath, subjects, training_in, training_out, trial_types=[
             output_dataframe = output_dataframe[1000 * output_dataframe['Header'] % 5 == 0]
             output_dataframe.reset_index(drop=True, inplace=True)
             # To + disp features prokalei diplo Header sto apotelesma
-            output_dataframe = output_dataframe[[training_out[0]] + disp_features]
+            output_dataframe = output_dataframe[training_out + disp_features]
             output_dataframe = output_dataframe.iloc[:, :-1]
             trial_df = pd.concat([input_dataframe, output_dataframe], axis=1)
             if dropNaN:
@@ -190,9 +193,6 @@ def getTrainingData(workpath, subjects, training_in, training_out, trial_types=[
         # subject_df['height'] = subject_height
         subject_df['subject_weight'] = subject_weight
         subject_dataframes.append(subject_df)
-        # Should save the training data in each subject folder but keep that for later use for inter-subject training
-        #
-        #
 
         if save_condition:
             subject_df.to_csv("Training_Data" + subject['Subject'] + ".csv", index=False)
@@ -231,7 +231,7 @@ def groupbyFeature(df, feature=None):
         return group_dataframes, group_attributes
 
 
-def getGaitCycles(df, preprocess_EMG=False , p=1 ):
+def getGaitCycles(df, preprocess_EMG=False, p=1, dropHeader=False):
     cycles = []
 
     data_copy = df.copy()
@@ -249,8 +249,20 @@ def getGaitCycles(df, preprocess_EMG=False , p=1 ):
             continue  # problems with the last cycle
         cycle = data_copy.iloc[start:end]
         # Had cases where cycles were empty. Also no_of_rows>200 to skip incomplete gait cycles
+
+        # f, (ax1, ax2) = plt.subplots(2, 1)
+        # ax1.plot(cycle['HeelStrike'], cycle['knee_angle_r_moment'])
+        # ax2.plot(cycle['HeelStrike'], cycle['knee_angle_r'])
+        # ax1.set_title("Knee moment (normalized)")
+        # ax2.set_title("Knee angle (not normalized)")
+        # ax2.set_xlabel("% of Gait Cycle completion")
+        # ax1.set_ylabel("Nm/kg")
+        # ax2.set_ylabel("degrees")
+        # plt.tight_layout()
+        # plt.show()
         if not cycle.empty and cycle.shape[0] >= 200:
             cycles.append(cycle)
+
     # Keep the % of cycles we want
     cycles = random.sample(cycles, int(p * len(cycles)))
 
@@ -261,22 +273,40 @@ def getGaitCycles(df, preprocess_EMG=False , p=1 ):
         print("Finished")
 
     interp_cycles = []
-    columns_to_interp = training_input['emg'] + training_input['fp'] + training_input['ik'] + ['Header'] + output_features
-    common_x_axis = np.linspace(start=0.0, stop=100.0, num=100)
+    features = []
+    for l in training_input.values():
+        features.extend(l)
+    columns_to_interp = features + ['Header'] + output_features
+    common_x_axis = np.linspace(start=0.0, stop=100.0, num=200)
 
     for i, cycle in enumerate(cycles):
         cycle = cycle.reset_index(drop=True)
         interp_cycle = pd.DataFrame()
         # Interpolate all columns according to HeelStrike %
         for column_name in columns_to_interp:
+            to_interp = cycle[column_name]
             interp_cycle[column_name] = np.interp(common_x_axis, cycle['HeelStrike'],
                                                   cycle[column_name])
         interp_cycle['subject_num'] = cycle['subject_num'].iloc[:]
         interp_cycle['subject_weight'] = cycle['subject_weight'].iloc[:]
 
         interp_cycle['x_common'] = common_x_axis
-
         interp_cycles.append(interp_cycle)
+        # Original vs Interpolated plot
+        # f, (ax1, ax2) = plt.subplots(2, 1)
+        # ax1.scatter(cycle['HeelStrike'], cycle['knee_angle_r'], s=5)
+        # ax2.scatter(interp_cycle['x_common'], interp_cycle['knee_angle_r'], s=5)
+        # ax1.set_title("Knee moment sample before interpolation (not normalized)")
+        # ax2.set_title("After interpolation (n = 200 points)")
+        # plt.tight_layout()
+        # plt.show()
+    # Distribution of gait cycle lengths plot
+    # lengths = [len(cycle) for cycle in cycles]
+    # sns.histplot(data=lengths)
+    # plt.title("Distribution of gait cycle lengths")
+    # plt.xlabel("timesteps")
+    # plt.show()
+
     return cycles, interp_cycles
 
 
@@ -297,16 +327,13 @@ def process_EMGs(cycles):
         EMG_rectified = EMG_raw.abs()
         # Smooth each column seperately with the butteworth filter
         EMG_smoothed = pd.DataFrame()
+
         for column_name in EMG_rectified.columns:
             EMG_smoothed[column_name] = filtfilt(b, a, EMG_rectified[column_name])
 
-        # Normalize. This resets the dataframe index.
-        EMG_normalized = EMG_smoothed
-
-        # EMG_normalized = (EMG_smoothed - EMG_smoothed.mean()) / EMG_smoothed.std()
         rest_of_cycle.reset_index(inplace=True, drop=True)
         # Update the original cycles list with the new cycle
-        processed_cycles.append(pd.concat([EMG_normalized, rest_of_cycle], axis=1))
+        processed_cycles.append(pd.concat([EMG_smoothed, rest_of_cycle], axis=1))
 
     return processed_cycles
 
@@ -416,8 +443,9 @@ def filter_ID(id_df, cutoff_freq):
     # The scipy filtfilt function applies a filter twice, once forward and once reverse, to cancel out phase shift applied from the filter
     filtered = id_df.copy()
     k = math.pow(math.sqrt(2.0) - 1.0, -0.25)
-    b, a = butter(2, k * cutoff_freq, fs=200.0)  # fs = 200 hz because 1/200 is 0.005 which is the sampling rate
+    # f = id_df.iloc[:, 0].diff().mean()
+    b, a = butter(2, k * cutoff_freq, fs=100.0)  # fs = 200 hz because 1/200 is 0.005 which is the sampling rate
 
-    filtered.iloc[:, 1:] = filtfilt(b, a, filtered.iloc[:, 1:], axis=0)
+    filtered.iloc[:] = filtfilt(b, a, filtered.iloc[:], axis=0)
 
     return filtered
